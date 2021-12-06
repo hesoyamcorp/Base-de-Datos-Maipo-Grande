@@ -14,12 +14,13 @@ INSERT INTO PAIS VALUES (3,'Peru');
 INSERT INTO VIGENCIA VALUES (1,'VIGENTE');
 INSERT INTO VIGENCIA VALUES (2,'NO VIGENTE');
 
-INSERT INTO EMPRESA VALUES (1,'Pucon SA');
-
-INSERT INTO USUARIO VALUES ('juancarlos@gmail.com', '123', 1, 1, 1, 1);
-INSERT INTO USUARIO VALUES ('pabloproductor@gmail.com', '123', 1, 2, 2, 1);
-INSERT INTO USUARIO VALUES ('diegotransportes@gmail.com', '123', 1, 3, 3, 1);
+INSERT INTO USUARIO VALUES ('juancarlos@gmail.com', '123', 1, 1, 1, 'No Asignado');
+INSERT INTO USUARIO VALUES ('pabloproductor@gmail.com', '123', 1, 2, 2, 'Pucon SA');
+INSERT INTO USUARIO VALUES ('diegotransportes@gmail.com', '123', 1, 3, 3, 'Diego Transporte');
+INSERT INTO USUARIO VALUES ('camiloadmin@gmail.com'123', 1, 0, 1, 'Maipo Grande');
+INSERT INTO USUARIO VALUES ('Hectortransporte@gmail.com', '123', 1, 3, 3, 'TranspoHector');
 
 INSERT INTO CLIENTE VALUES (1, 'Juan', 'Carlos', 'Calle #123', 912345678, 1, 'juancarlos@gmail.com');
 INSERT INTO PRODUCTOR VALUES (1, 'Pablo', 'Gonzales', 'pabloproductor@gmail.com', 912345678, 'Calle #123');
-INSERT INTO TRANSPORTISTA VALUES (1, 'Diego', 'Perez', 912345678, 'Calle #123', 'Camiones', 'diegotransportes@gmail.com');
+INSERT INTO TRANSPORTISTA VALUES (1, 'Diego', 'Perez', 912345678, 'Calle #123', 'Camiones 3/4', 'diegotransporte@gmail.com');
+INSERT INTO TRANSPORTISTA VALUES (2, 'Hector', 'Nuñez', 955214789, 'Simon Bolibar 12644', 'Camionetas', 'Hectortransporte@gmail.com');
