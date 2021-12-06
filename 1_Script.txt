@@ -1,0 +1,305 @@
+
+
+CREATE TABLE apelacion (
+    id_devolucion        NUMBER(7) NOT NULL,
+    descripcion          VARCHAR2(500 CHAR) NOT NULL,
+    validacion           CHAR(1) NOT NULL,
+    orden_compra_idorden NUMBER(20) NOT NULL
+);
+
+ALTER TABLE apelacion ADD CONSTRAINT apelacion_pk PRIMARY KEY ( id_devolucion );
+
+CREATE TABLE carrito (
+    cliente_id_cliente   NUMBER(20) NOT NULL,
+    producto_id_producto NUMBER(7) NOT NULL,
+    cantidadproducto     NUMBER(10) NOT NULL
+);
+
+ALTER TABLE carrito ADD CONSTRAINT relation_48_pk PRIMARY KEY ( cliente_id_cliente,
+                                                                producto_id_producto );
+
+CREATE TABLE cliente (
+    id_cliente                   NUMBER(20) NOT NULL,
+    nombre_cliente               VARCHAR2(30 CHAR) NOT NULL,
+    apellido_cliente             VARCHAR2(30 CHAR) NOT NULL,
+    direccion_cliente            VARCHAR2(100 CHAR) NOT NULL,
+    numero_contacto              NUMBER(15) NOT NULL,
+    tipo_cliente_id_tipo_cliente NUMBER(7) NOT NULL,
+    usuario_correo_usuario       VARCHAR2(50) NOT NULL
+);
+
+CREATE UNIQUE INDEX cliente__idx ON
+    cliente (
+        usuario_correo_usuario
+    ASC );
+
+ALTER TABLE cliente ADD CONSTRAINT cliente_pk PRIMARY KEY ( id_cliente );
+
+CREATE TABLE cod_orden (
+    codigoordencompra VARCHAR2(50 CHAR) NOT NULL
+);
+
+ALTER TABLE cod_orden ADD CONSTRAINT cod_orden_pk PRIMARY KEY ( codigoordencompra );
+
+CREATE TABLE ct_productor (
+    id_pcontrato                NUMBER(20) NOT NULL,
+    nombrecliente               VARCHAR2(80 CHAR) NOT NULL,
+    responsable_nombre          VARCHAR2(60 CHAR) NOT NULL,
+    responsable_empresa         VARCHAR2(60 CHAR) NOT NULL,
+    fecha_inicio                VARCHAR2(30 CHAR) NOT NULL,
+    fecha_termino               VARCHAR2(30 CHAR) NOT NULL,
+    destinopedido               VARCHAR2(60 CHAR) NOT NULL,
+    estado_contrato             VARCHAR2(30 CHAR) NOT NULL,
+    gananciatotal               NUMBER(20) NOT NULL,
+    ganancia_maipo              NUMBER(20) NOT NULL,
+    gananciaproductor           NUMBER(20) NOT NULL,
+    productor_id_productor      NUMBER(7) NOT NULL,
+    cod_orden_codigoordencompra VARCHAR2(50 CHAR) NOT NULL
+);
+
+ALTER TABLE ct_productor ADD CONSTRAINT ct_productor_pk PRIMARY KEY ( id_pcontrato );
+
+CREATE TABLE ct_transp (
+    id_ctcontrato                  NUMBER(20) NOT NULL,
+    nombrecliente                  VARCHAR2(60 CHAR) NOT NULL,
+    responsable_nombre             VARCHAR2(60 CHAR) NOT NULL,
+    responsable_empresa            VARCHAR2(60 CHAR) NOT NULL,
+    fecha_inicio                   VARCHAR2(30 CHAR) NOT NULL,
+    fecha_termino                  VARCHAR2(30 CHAR) NOT NULL,
+    destinopedido                  VARCHAR2(500 CHAR) NOT NULL,
+    estadocontrato                 VARCHAR2(30 CHAR) NOT NULL,
+    pesototal                      NUMBER(10) NOT NULL,
+    valorservicio                  NUMBER(10) NOT NULL,
+    transportista_id_transportista NUMBER(7) NOT NULL,
+    cod_orden_codigoordencompra    VARCHAR2(50 CHAR) NOT NULL
+);
+
+ALTER TABLE ct_transp ADD CONSTRAINT ct_transp_pk PRIMARY KEY ( id_ctcontrato );
+
+CREATE TABLE orden_compra (
+    idorden                     NUMBER(20) NOT NULL,
+    producto                    VARCHAR2(30) NOT NULL,
+    precio_producto             NUMBER(10) NOT NULL,
+    precio_total                NUMBER(10) NOT NULL,
+    cantidad                    NUMBER(10) NOT NULL,
+    peso_total                  NUMBER(7) NOT NULL,
+    destino_compra              VARCHAR2(30) NOT NULL,
+    estado                      VARCHAR2(500 CHAR) NOT NULL,
+    cliente_id_cliente          NUMBER(20) NOT NULL,
+    cod_orden_codigoordencompra VARCHAR2(50 CHAR) NOT NULL
+);
+
+ALTER TABLE orden_compra ADD CONSTRAINT orden_compra_pk PRIMARY KEY ( idorden );
+
+CREATE TABLE pais (
+    id_pais     NUMBER(7) NOT NULL,
+    nombre_pais VARCHAR2(30) NOT NULL
+);
+
+ALTER TABLE pais ADD CONSTRAINT pais_pk PRIMARY KEY ( id_pais );
+
+CREATE TABLE producto (
+    id_producto            NUMBER(7) NOT NULL,
+    nombre_producto        VARCHAR2(30) NOT NULL,
+    precio_kilo            NUMBER(7) NOT NULL,
+    origen_producto        VARCHAR2(30) NOT NULL,
+    precio_carga           NUMBER NOT NULL,
+    calidad                VARCHAR2(30) NOT NULL,
+    productor_id_productor NUMBER(7) NOT NULL
+);
+
+ALTER TABLE producto ADD CONSTRAINT producto_pk PRIMARY KEY ( id_producto );
+
+CREATE TABLE producto_orden (
+    producto_id_producto NUMBER(7) NOT NULL,
+    orden_compra_idorden NUMBER(20) NOT NULL
+);
+
+ALTER TABLE producto_orden ADD CONSTRAINT relation_31_pk PRIMARY KEY ( producto_id_producto,
+                                                                       orden_compra_idorden );
+
+CREATE TABLE productor (
+    id_productor           NUMBER(7) NOT NULL,
+    nombre_productor       VARCHAR2(30) NOT NULL,
+    apellido_productor     VARCHAR2(30) NOT NULL,
+    usuario_correo_usuario VARCHAR2(50) NOT NULL,
+    numero_contacto        NUMBER(15) NOT NULL,
+    direccion_productor    VARCHAR2(30 CHAR) NOT NULL
+);
+
+CREATE UNIQUE INDEX productor__idx ON
+    productor (
+        usuario_correo_usuario
+    ASC );
+
+ALTER TABLE productor ADD CONSTRAINT productor_pk PRIMARY KEY ( id_productor );
+
+CREATE TABLE propuesta (
+    id_propuesta                   NUMBER(15) NOT NULL,
+    descripcion_propuesta          VARCHAR2(200 CHAR) NOT NULL,
+    valor_servicio                 NUMBER(20) NOT NULL,
+    estado                         VARCHAR2(100 CHAR) NOT NULL,
+    transportista_id_transportista NUMBER(7) NOT NULL,
+    cod_orden_codigoordencompra    VARCHAR2(50 CHAR) NOT NULL
+);
+
+ALTER TABLE propuesta ADD CONSTRAINT propuesta_pk PRIMARY KEY ( id_propuesta );
+
+CREATE TABLE registro_error (
+    id_error    NUMBER(10) NOT NULL,
+    descripcion VARCHAR2(500 CHAR) NOT NULL
+);
+
+ALTER TABLE registro_error ADD CONSTRAINT registro_error_pk PRIMARY KEY ( id_error );
+
+CREATE TABLE seguimiento (
+    id_seguimiento          NUMBER(20) NOT NULL,
+    descripcion_seguimiento VARCHAR2(100 CHAR) NOT NULL,
+    orden_compra_idorden    NUMBER(20) NOT NULL
+);
+
+CREATE UNIQUE INDEX seguimiento__idx ON
+    seguimiento (
+        orden_compra_idorden
+    ASC );
+
+ALTER TABLE seguimiento ADD CONSTRAINT seguimiento_pk PRIMARY KEY ( id_seguimiento );
+
+CREATE TABLE tipo_cliente (
+    id_tipo_cliente NUMBER(7) NOT NULL,
+    tipo_cliente    VARCHAR2(30) NOT NULL
+);
+
+ALTER TABLE tipo_cliente ADD CONSTRAINT tipo_cliente_pk PRIMARY KEY ( id_tipo_cliente );
+
+CREATE TABLE tipo_usuario (
+    id_tipo_usuario NUMBER(7) NOT NULL,
+    tipo_usuario    VARCHAR2(30) NOT NULL
+);
+
+ALTER TABLE tipo_usuario ADD CONSTRAINT tipo_usuario_pk PRIMARY KEY ( id_tipo_usuario );
+
+CREATE TABLE transportista (
+    id_transportista          NUMBER(7) NOT NULL,
+    nombre_transportista      VARCHAR2(30) NOT NULL,
+    apellido_transportista    VARCHAR2(30) NOT NULL,
+    numero_transportista      NUMBER(15) NOT NULL,
+    direccion_transportista   VARCHAR2(30 CHAR) NOT NULL,
+    descripcion_transportista VARCHAR2(500 CHAR) NOT NULL,
+    usuario_correo_usuario    VARCHAR2(50) NOT NULL
+);
+
+CREATE UNIQUE INDEX transportista__idx ON
+    transportista (
+        usuario_correo_usuario
+    ASC );
+
+ALTER TABLE transportista ADD CONSTRAINT transportista_pk PRIMARY KEY ( id_transportista );
+
+CREATE TABLE usuario (
+    correo_usuario               VARCHAR2(50) NOT NULL,
+    contraseña_usuario           VARCHAR2(20) NOT NULL,
+    vigencia_id_vigencia         NUMBER(7) NOT NULL,
+    tipo_usuario_id_tipo_usuario NUMBER(7) NOT NULL,
+    pais_id_pais                 NUMBER(7) NOT NULL,
+    empresa                      VARCHAR2(100 CHAR) NOT NULL
+);
+
+ALTER TABLE usuario ADD CONSTRAINT usuario_pk PRIMARY KEY ( correo_usuario );
+
+CREATE TABLE vigencia (
+    id_vigencia     NUMBER(7) NOT NULL,
+    estado_vigencia VARCHAR2(30) NOT NULL
+);
+
+ALTER TABLE vigencia ADD CONSTRAINT vigencia_pk PRIMARY KEY ( id_vigencia );
+
+ALTER TABLE apelacion
+    ADD CONSTRAINT apelacion_orden_compra_fk FOREIGN KEY ( orden_compra_idorden )
+        REFERENCES orden_compra ( idorden );
+
+ALTER TABLE cliente
+    ADD CONSTRAINT cliente_tipo_cliente_fk FOREIGN KEY ( tipo_cliente_id_tipo_cliente )
+        REFERENCES tipo_cliente ( id_tipo_cliente );
+
+ALTER TABLE cliente
+    ADD CONSTRAINT cliente_usuario_fk FOREIGN KEY ( usuario_correo_usuario )
+        REFERENCES usuario ( correo_usuario );
+
+ALTER TABLE ct_productor
+    ADD CONSTRAINT ct_productor_cod_orden_fk FOREIGN KEY ( cod_orden_codigoordencompra )
+        REFERENCES cod_orden ( codigoordencompra );
+
+ALTER TABLE ct_productor
+    ADD CONSTRAINT ct_productor_productor_fk FOREIGN KEY ( productor_id_productor )
+        REFERENCES productor ( id_productor );
+
+ALTER TABLE ct_transp
+    ADD CONSTRAINT ct_transp_cod_orden_fk FOREIGN KEY ( cod_orden_codigoordencompra )
+        REFERENCES cod_orden ( codigoordencompra );
+
+ALTER TABLE ct_transp
+    ADD CONSTRAINT ct_transp_transportista_fk FOREIGN KEY ( transportista_id_transportista )
+        REFERENCES transportista ( id_transportista );
+
+ALTER TABLE orden_compra
+    ADD CONSTRAINT orden_compra_cliente_fk FOREIGN KEY ( cliente_id_cliente )
+        REFERENCES cliente ( id_cliente );
+
+ALTER TABLE orden_compra
+    ADD CONSTRAINT orden_compra_cod_orden_fk FOREIGN KEY ( cod_orden_codigoordencompra )
+        REFERENCES cod_orden ( codigoordencompra );
+
+ALTER TABLE producto
+    ADD CONSTRAINT producto_productor_fk FOREIGN KEY ( productor_id_productor )
+        REFERENCES productor ( id_productor );
+
+ALTER TABLE productor
+    ADD CONSTRAINT productor_usuario_fk FOREIGN KEY ( usuario_correo_usuario )
+        REFERENCES usuario ( correo_usuario );
+
+ALTER TABLE propuesta
+    ADD CONSTRAINT propuesta_cod_orden_fk FOREIGN KEY ( cod_orden_codigoordencompra )
+        REFERENCES cod_orden ( codigoordencompra );
+
+ALTER TABLE propuesta
+    ADD CONSTRAINT propuesta_transportista_fk FOREIGN KEY ( transportista_id_transportista )
+        REFERENCES transportista ( id_transportista );
+
+ALTER TABLE producto_orden
+    ADD CONSTRAINT relation_31_orden_compra_fk FOREIGN KEY ( orden_compra_idorden )
+        REFERENCES orden_compra ( idorden );
+
+ALTER TABLE producto_orden
+    ADD CONSTRAINT relation_31_producto_fk FOREIGN KEY ( producto_id_producto )
+        REFERENCES producto ( id_producto );
+
+ALTER TABLE carrito
+    ADD CONSTRAINT relation_48_cliente_fk FOREIGN KEY ( cliente_id_cliente )
+        REFERENCES cliente ( id_cliente );
+
+ALTER TABLE carrito
+    ADD CONSTRAINT relation_48_producto_fk FOREIGN KEY ( producto_id_producto )
+        REFERENCES producto ( id_producto );
+
+ALTER TABLE seguimiento
+    ADD CONSTRAINT seguimiento_orden_compra_fk FOREIGN KEY ( orden_compra_idorden )
+        REFERENCES orden_compra ( idorden );
+
+ALTER TABLE transportista
+    ADD CONSTRAINT transportista_usuario_fk FOREIGN KEY ( usuario_correo_usuario )
+        REFERENCES usuario ( correo_usuario );
+
+ALTER TABLE usuario
+    ADD CONSTRAINT usuario_pais_fk FOREIGN KEY ( pais_id_pais )
+        REFERENCES pais ( id_pais );
+
+ALTER TABLE usuario
+    ADD CONSTRAINT usuario_tipo_usuario_fk FOREIGN KEY ( tipo_usuario_id_tipo_usuario )
+        REFERENCES tipo_usuario ( id_tipo_usuario );
+
+ALTER TABLE usuario
+    ADD CONSTRAINT usuario_vigencia_fk FOREIGN KEY ( vigencia_id_vigencia )
+        REFERENCES vigencia ( id_vigencia );
+
+             

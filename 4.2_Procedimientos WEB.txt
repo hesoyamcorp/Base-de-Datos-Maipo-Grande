@@ -1,0 +1,1502 @@
+create or replace 
+PROCEDURE LOGIN(V_CORREO VARCHAR, V_PASS VARCHAR, Verificador out Boolean )
+IS 
+
+  CURSOR C_USUARIO IS SELECT * FROM USUARIO;
+  V_USUARIOS C_USUARIO%rowtype;
+  ERROR VARCHAR(50);
+  
+BEGIN
+
+  VERIFICADOR:= FALSE;
+
+  OPEN C_USUARIO;
+    LOOP
+      FETCH C_USUARIO INTO V_USUARIOS;
+      
+        IF V_USUARIOS.CORREO_USUARIO = V_CORREO AND v_USUARIOS.CONTRASEÑA_USUARIO = V_PASS
+          THEN    
+          
+          VERIFICADOR:= TRUE;         
+        
+        END IF;
+        
+      EXIT WHEN C_USUARIO%NOTFOUND;
+    END LOOP;
+  CLOSE C_USUARIO;
+  
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+END;
+
+
+-----------------------------------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SIGN_UP(V_CORREO VARCHAR, V_PASS VARCHAR, V_ID_VIGENCIA NUMBER, V_TIPO_USUARIO NUMBER,
+  V_PAIS_NOMBRE VARCHAR, V_NOMBRE_EMPRESA VARCHAR, V_NOMBRE VARCHAR, V_APELLIDO VARCHAR,
+  V_DIRECCION VARCHAR, V_NUMERO_CONTACTO NUMBER, V_TIPO_CLIENTE NUMBER, V_DESCRIPCION VARCHAR, V_IDPAIS NUMBER)
+
+IS 
+
+ERROR VARCHAR(50);
+BEGIN   
+    
+    INSERT INTO USUARIO VALUES(
+      V_CORREO,
+      V_PASS,
+      V_ID_VIGENCIA,
+      V_TIPO_USUARIO,
+      V_IDPAIS,
+      V_NOMBRE_EMPRESA
+    );
+    
+    IF V_TIPO_USUARIO=1
+    THEN
+      INSERT INTO CLIENTE VALUES(
+        SEC_CLIENTE.NEXTVAL,
+        V_NOMBRE,
+        V_APELLIDO,
+        V_DIRECCION,
+        V_NUMERO_CONTACTO,
+        V_TIPO_CLIENTE,
+        V_CORREO
+      );  
+    END IF;
+    
+    IF V_TIPO_USUARIO=2
+    THEN
+      INSERT INTO PRODUCTOR VALUES(
+        SEC_CLIENTE.NEXTVAL,
+        V_NOMBRE,
+        V_APELLIDO,
+        V_CORREO,
+        V_NUMERO_CONTACTO,
+        V_DIRECCION
+      );  
+    END IF;
+    
+    IF V_TIPO_USUARIO=3
+    THEN
+      INSERT INTO TRANSPORTISTA VALUES(
+        SEC_CLIENTE.NEXTVAL,
+        V_NOMBRE,
+        V_APELLIDO,
+        V_NUMERO_CONTACTO,
+        V_DIRECCION,
+        V_DESCRIPCION,
+        V_CORREO
+      );  
+    END IF;
+    
+    EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+     
+END;
+
+---------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_ADD_ORDENCOMPRA(V_CORREO_CLIENTE VARCHAR, V_IDPRODUCTO NUMBER, V_CODIGO VARCHAR, V_PRODUCTO VARCHAR, V_PRECIO number, V_PRECIOTOTAL number,V_CANTIDAD NUMBER,  V_PESOTOTAL number, V_DESTINO VARCHAR, V_ESTADO VARCHAR)
+IS 
+
+  CURSOR C_CLIENTE IS SELECT * FROM CLIENTE;
+  V_CLIENTE C_CLIENTE%rowtype;
+  
+  CURSOR C_PRODUCTOR IS select * from producto pro inner join productor pr on pro.productor_id_productor = pr.id_productor INNER JOIN USUARIO US ON pr.usuario_correo_usuario = us.correo_usuario where pro.id_producto = V_IDPRODUCTO;
+  V_PRODUCTOR C_PRODUCTOR%rowtype;
+  
+  CURSOR C_CODIGO IS SELECT * FROM COD_ORDEN;
+  VC_CODIGO C_CODIGO%rowtype;
+  VF_CODIGO BOOLEAN;
+  
+  V_IDCLIENTE NUMBER;
+  VF_CORREO BOOLEAN;
+  V_IDORDEN NUMBER;
+  V_CODIGOF VARCHAR(30);
+  
+  V_NOMBRECLIENTE VARCHAR(30);
+  
+  --Datos Productor
+  v_nombreproductor VARCHAR(30);
+  v_empresaproductor VARCHAR(30);
+  v_carga number;
+  v_idproductor number;
+  
+  ERROR VARCHAR(50);
+  
+  BEGIN
+
+    VF_CORREO := FALSE;
+    VF_CODIGO := FALSE;
+
+    OPEN C_CLIENTE;
+      LOOP
+        FETCH C_CLIENTE INTO V_CLIENTE;
+        
+          IF V_CLIENTE.USUARIO_CORREO_USUARIO = V_CORREO_CLIENTE
+            THEN
+            VF_CORREO := TRUE;
+            V_IDCLIENTE:= V_CLIENTE.ID_CLIENTE;
+            
+            V_NOMBRECLIENTE:= V_CLIENTE.NOMBRE_CLIENTE||' '||V_CLIENTE.APELLIDO_Cliente;
+            
+            
+            EXIT;
+          END IF;
+        
+        EXIT WHEN C_CLIENTE%NOTFOUND;
+      END LOOP;
+    CLOSE C_CLIENTE;
+
+
+  IF VF_CORREO=TRUE
+    THEN
+    
+    V_IDORDEN := SEC_ORDENCOMPRA.NEXTVAL;
+    
+    V_CODIGOF := CONCAT( V_IDCLIENTE, V_CODIGO );
+    
+  OPEN C_CODIGO;
+      LOOP
+        FETCH C_CODIGO INTO VC_CODIGO;
+        
+          IF VC_CODIGO.CODIGOORDENCOMPRA = V_CODIGOF
+            THEN
+            VF_CODIGO := TRUE;
+            EXIT;
+          END IF;
+        
+        EXIT WHEN C_CODIGO%NOTFOUND;
+      END LOOP;
+  CLOSE C_CODIGO;
+    
+  IF VF_CODIGO=FALSE
+    THEN
+    
+  INSERT INTO Cod_Orden VALUES(
+      V_CODIGOF
+      
+  );  
+  
+  END IF;
+  
+  INSERT INTO ORDEN_COMPRA VALUES(
+      V_IDORDEN,
+      V_PRODUCTO,
+      V_PRECIO,
+      V_PRECIOTOTAL,
+      V_CANTIDAD,
+      V_PESOTOTAL,
+      V_DESTINO,
+      'Pendiente',
+      V_IDCLIENTE,
+      V_CODIGOF
+    ); 
+    
+    
+  -- Contrato Productor
+    
+  OPEN C_PRODUCTOR;
+      LOOP
+        FETCH C_PRODUCTOR INTO V_PRODUCTOR;
+      
+      v_nombreproductor := V_PRODUCTOR.NOMBRE_PRODUCTOR||' '||V_PRODUCTOR.APELLIDO_PRODUCTOR;
+      v_empresaproductor := V_PRODUCTOR.EMPRESA;
+      v_carga:=V_PRODUCTOR.precio_carga;
+      v_idproductor:=V_PRODUCTOR.productor_id_productor;
+        EXIT WHEN C_PRODUCTOR%NOTFOUND;
+      END LOOP;
+    CLOSE C_PRODUCTOR;
+    
+  INSERT INTO CT_PRODUCTOR VALUES(
+  SEC_CTPRODUCTOR.NEXTVAL,
+  V_NOMBRECLIENTE,
+  v_nombreproductor,
+  v_empresaproductor,
+  sysdate,
+  'No Terminado',
+  V_DESTINO,
+  'Pendiente',
+  V_PRECIOTOTAL,
+  v_carga,
+  V_PRECIO,
+  v_idproductor,
+  V_CODIGOF
+  );
+    
+    INSERT INTO PRODUCTO_ORDEN VALUES(
+     V_IDPRODUCTO,
+     V_IDORDEN
+    );  
+    
+     DELETE FROM CARRITO WHERE producto_id_producto = V_IDPRODUCTO AND cliente_id_cliente = V_IDCLIENTE;
+    
+  END IF;
+  
+EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+    
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+  
+END;
+
+----------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_AGREGAR_CARRITO(V_CORREO_PRODUC VARCHAR, ID_PRODUCTO NUMBER, V_CANTIDAD NUMBER)
+IS 
+
+  CURSOR C_CLIENTE IS SELECT * FROM CLIENTE;
+  V_CLIENTE C_CLIENTE%rowtype;
+  V_IDPRODUC NUMBER;
+  VF_CORREO BOOLEAN;
+
+ ERROR VARCHAR(50);
+BEGIN
+
+    VF_CORREO := FALSE;
+
+    OPEN C_CLIENTE;
+      LOOP
+        FETCH C_CLIENTE INTO V_CLIENTE;
+        
+          IF V_CLIENTE.USUARIO_CORREO_USUARIO = V_CORREO_PRODUC
+            THEN
+            VF_CORREO := TRUE;
+            V_IDPRODUC:= V_CLIENTE.ID_CLIENTE;
+            EXIT;
+          END IF;
+        
+        EXIT WHEN C_CLIENTE%NOTFOUND;
+      END LOOP;
+    CLOSE C_CLIENTE;
+
+
+  IF VF_CORREO=TRUE
+    THEN
+
+  INSERT INTO carrito VALUES(
+      V_IDPRODUC,
+      ID_PRODUCTO,
+      V_CANTIDAD
+    );  
+  
+  END IF;
+
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+    
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+END;
+
+------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_AGREGAR_PRODUCTO (V_NOMBRE_PRODUCTO VARCHAR2, V_PRECIO_KILO	NUMBER, V_ORIGEN_PRODUCTO	VARCHAR2, V_CARGA	NUMBER,
+                                                V_CALIDAD	VARCHAR2, V_CORREO_PRODUC	VARCHAR2)
+IS
+
+  CURSOR C_PRODUCTOR IS SELECT * FROM PRODUCTOR;
+  V_PRODUCTOR C_PRODUCTOR%rowtype;
+  V_IDPRODUC NUMBER;
+  VF_CORREO BOOLEAN; 
+  
+  ERROR VARCHAR(50);
+  
+BEGIN
+
+    VF_CORREO := FALSE;
+
+    OPEN C_PRODUCTOR;
+      LOOP
+        FETCH C_PRODUCTOR INTO V_PRODUCTOR;
+        
+          IF V_PRODUCTOR.USUARIO_CORREO_USUARIO = V_CORREO_PRODUC
+            THEN
+            VF_CORREO := TRUE;
+            V_IDPRODUC:= V_PRODUCTOR.ID_PRODUCTOR;
+            EXIT;
+          END IF;
+        
+        EXIT WHEN C_PRODUCTOR%NOTFOUND;
+      END LOOP;
+    CLOSE C_PRODUCTOR;
+
+
+  IF VF_CORREO=TRUE
+    THEN
+    
+    INSERT INTO PRODUCTO VALUES(
+      SEC_PRODUCTOS.NEXTVAL,
+      V_NOMBRE_PRODUCTO,
+      V_PRECIO_KILO,
+      V_ORIGEN_PRODUCTO,
+      V_CARGA,
+      V_CALIDAD,
+      V_IDPRODUC
+    ); 
+    
+  END IF;
+  
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+END;
+
+---------------------------------------------------------------------------
+
+
+create or replace 
+PROCEDURE SPW_CANCELAR_PROPUESTA( V_ID_PROPUESTA NUMBER )
+IS 
+ERROR VARCHAR(50);
+BEGIN
+
+  DELETE FROM PROPUESTA WHERE id_propuesta = V_ID_PROPUESTA;
+  
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+END;
+
+
+----------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_ELIMINAR_CARRITO(V_CORREO_PRODUC VARCHAR, ID_PRODUCTO NUMBER)
+IS 
+
+  CURSOR C_CLIENTE IS SELECT * FROM CLIENTE;
+  V_CLIENTE C_CLIENTE%rowtype;
+  V_IDPRODUC NUMBER;
+  VF_CORREO BOOLEAN;
+  
+  ERROR VARCHAR(50);
+  
+BEGIN
+
+    VF_CORREO := FALSE;
+
+    OPEN C_CLIENTE;
+      LOOP
+        FETCH C_CLIENTE INTO V_CLIENTE;
+        
+          IF V_CLIENTE.USUARIO_CORREO_USUARIO = V_CORREO_PRODUC
+            THEN
+            VF_CORREO := TRUE;
+            V_IDPRODUC:= V_CLIENTE.ID_CLIENTE;
+            EXIT;
+          END IF;
+        
+        EXIT WHEN C_CLIENTE%NOTFOUND;
+      END LOOP;
+    CLOSE C_CLIENTE;
+
+
+  IF VF_CORREO=TRUE
+    THEN
+    
+    DELETE FROM carrito WHERE V_IDPRODUC = CLIENTE_ID_CLIENTE AND producto_id_producto = ID_PRODUCTO;
+
+  END IF;
+
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+END;
+
+
+-----------------------------------------------------------------------
+
+
+create or replace 
+PROCEDURE SPW_ELIMINAR_PRODUCTO(p_ID_PRODUCTO NUMBER)
+IS 
+ERROR VARCHAR(50);
+
+BEGIN
+
+    DELETE FROM carrito WHERE p_ID_PRODUCTO = Producto_Id_producto;
+
+    DELETE FROM Producto_Orden WHERE p_ID_PRODUCTO = Producto_Id_producto;
+    
+    DELETE FROM producto WHERE p_ID_PRODUCTO = ID_PRODUCTO;
+    
+    EXCEPTION
+    WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+    
+END;
+
+----------------------------------------------------------------------
+
+
+create or replace 
+PROCEDURE SPW_ENVIAR_PROPUESTA(CODORDEN VARCHAR, V_DESCRIPCION VARCHAR, V_VALOR NUMBER, V_CORREO_TRANSP VARCHAR, COD_ORDEN NUMBER)
+IS 
+
+  CURSOR C_TRANSP IS SELECT * FROM TRANSPORTISTA;
+  V_TRANSP C_TRANSP%rowtype;
+  V_IDPRODUC NUMBER;
+  VF_CORREO BOOLEAN;
+
+ERROR VARCHAR(50);
+
+BEGIN
+
+    VF_CORREO := FALSE;
+
+    OPEN C_TRANSP;
+      LOOP
+        FETCH C_TRANSP INTO V_TRANSP;
+        
+          IF V_TRANSP.USUARIO_CORREO_USUARIO = V_CORREO_TRANSP
+            THEN
+            VF_CORREO := TRUE;
+            V_IDPRODUC:= V_TRANSP.ID_TRANSPORTISTA;
+            EXIT;
+          END IF;
+        
+        EXIT WHEN C_TRANSP%NOTFOUND;
+      END LOOP;
+    CLOSE C_TRANSP;
+
+
+  IF VF_CORREO=TRUE
+    THEN
+
+    INSERT INTO PROPUESTA VALUES(
+      SEC_PROPUESTA.NEXTVAL,
+      V_DESCRIPCION,
+      V_VALOR,
+      'Pendiente',
+      V_IDPRODUC,
+      CODORDEN    
+    );  
+  
+  END IF;
+
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+END;
+
+
+--------------------------------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_LIMPIAR_CARRITO(V_ID_CLIENTE NUMBER, ID_PRODUCTO NUMBER)
+IS 
+ERROR VARCHAR(50);
+BEGIN
+
+  DELETE FROM carrito WHERE CLIENTE_ID_CLIENTE = V_ID_CLIENTE;
+  
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+  
+END;
+
+
+------------------------------------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_LISTA_PRODUCTOS (PRODUCTOS	out SYS_REFCURSOR)
+IS
+ERROR VARCHAR(50);
+BEGIN
+    OPEN PRODUCTOS FOR SELECT * FROM PRODUCTO PR INNER JOIN  PRODUCTOR PRO ON PR.PRODUCTOR_ID_PRODUCTOR=pro.id_productor INNER JOIN USUARIO US ON us.correo_usuario=pro.usuario_correo_usuario;
+    
+    EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+END;
+
+-------------------------------------------------------------------------------------------------
+
+
+create or replace 
+PROCEDURE SPW_LISTAR_CARRITO(V_CORREO_PRODUC VARCHAR, PRODUCTOS out SYS_REFCURSOR)
+IS 
+
+  CURSOR C_CLIENTE IS SELECT * FROM CLIENTE;
+  V_CLIENTE C_CLIENTE%rowtype;
+
+  CURSOR C_CARRITO(p_idcliente number) IS (SELECT * FROM CARRITO where CLIENTE_ID_CLIENTE = p_idcliente);
+  V_CARRITO C_CARRITO%rowtype;
+  
+  CURSOR C_PRODUCTO(p_idproducto number) IS (SELECT * FROM PRODUCTO where ID_PRODUCTO = p_idproducto);
+  V_PRODUCTO C_PRODUCTO%rowtype;
+  
+  V_IDPRODUC NUMBER;
+  VF_CORREO BOOLEAN;
+  
+  ERROR VARCHAR(50);
+
+BEGIN
+
+    VF_CORREO := FALSE;
+
+    OPEN C_CLIENTE;
+      LOOP
+        FETCH C_CLIENTE INTO V_CLIENTE;
+        
+          IF V_CLIENTE.USUARIO_CORREO_USUARIO = V_CORREO_PRODUC
+            THEN
+            VF_CORREO := TRUE;
+            V_IDPRODUC:= V_CLIENTE.ID_CLIENTE;
+            EXIT;
+          END IF;
+        
+        EXIT WHEN C_CLIENTE%NOTFOUND;
+      END LOOP;
+    CLOSE C_CLIENTE;
+
+    OPEN PRODUCTOS FOR SELECT * FROM CARRITO where CLIENTE_ID_CLIENTE = V_IDPRODUC;
+    
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+       
+END;
+
+
+---------------------------------------------------------------------------------------------
+
+
+create or replace 
+PROCEDURE SPW_LISTAR_CLI_ORDENC(V_CORREO_PRODUC VARCHAR , ORDENCOMPRA out SYS_REFCURSOR)
+IS  
+
+  CURSOR C_CLIENTE IS SELECT * FROM CLIENTE;
+  V_CLIENTE C_CLIENTE%rowtype;
+  
+  V_IDPRODUC NUMBER;
+  VF_CORREO BOOLEAN;
+  ERROR VARCHAR(50);
+BEGIN
+
+VF_CORREO := FALSE;
+
+    OPEN C_CLIENTE;
+      LOOP
+        FETCH C_CLIENTE INTO V_CLIENTE;
+        
+          IF V_CLIENTE.USUARIO_CORREO_USUARIO = V_CORREO_PRODUC
+            THEN
+            VF_CORREO := TRUE;
+            V_IDPRODUC:= V_CLIENTE.ID_CLIENTE;
+            EXIT;
+          END IF;
+        
+        EXIT WHEN C_CLIENTE%NOTFOUND;
+      END LOOP;
+    CLOSE C_CLIENTE;
+    
+    IF VF_CORREO = TRUE
+    THEN
+      OPEN ORDENCOMPRA FOR SELECT cod_orden_codigoordencompra FROM orden_compra WHERE V_IDPRODUC = CLIENTE_ID_CLIENTE GROUP BY cod_orden_codigoordencompra;
+    END IF;
+    
+    EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+
+END;
+
+
+----------------------------------------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_LISTAR_COD_ORDENC(ORDENCOMPRA out SYS_REFCURSOR)
+IS  
+ERROR VARCHAR(50);
+BEGIN
+  OPEN ORDENCOMPRA FOR SELECT cod_orden_codigoordencompra FROM orden_compra GROUP BY cod_orden_codigoordencompra ;
+  
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+END;
+
+
+--------------------------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_LISTAR_ORDENCOMPRAS(P_CODIGO VARCHAR , ORDENCOMPRA out SYS_REFCURSOR)
+IS  
+ERROR VARCHAR(50);
+BEGIN
+  OPEN ORDENCOMPRA FOR SELECT * FROM orden_compra WHERE P_CODIGO = cod_orden_codigoordencompra;
+  
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+END;
+
+-------------------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_LISTAR_PRO_ORDENC(V_CORREO_PRODUCTOR VARCHAR , ORDENCOMPRA out SYS_REFCURSOR)
+IS  
+
+  CURSOR C_PRODUCTOR IS SELECT * FROM PRODUCTOR;
+  V_PRODUCTOR C_PRODUCTOR%rowtype;
+  
+  V_IDPRODUC NUMBER;
+  VF_CORREO BOOLEAN;
+  ERROR VARCHAR(50);
+BEGIN
+
+VF_CORREO := FALSE;
+
+    OPEN C_PRODUCTOR;
+      LOOP
+        FETCH C_PRODUCTOR INTO V_PRODUCTOR;
+        
+          IF V_PRODUCTOR.USUARIO_CORREO_USUARIO = V_CORREO_PRODUCTOR
+            THEN
+            VF_CORREO := TRUE;
+            V_IDPRODUC:= V_PRODUCTOR.ID_PRODUCTOR;
+            EXIT;
+          END IF;
+        
+        EXIT WHEN C_PRODUCTOR%NOTFOUND;
+      END LOOP;
+    CLOSE C_PRODUCTOR;
+    
+    IF VF_CORREO = TRUE
+    THEN
+      OPEN ORDENCOMPRA FOR SELECT COD_ORDEN_CODIGOORDENCOMPRA FROM orden_compra WHERE V_IDPRODUC = CLIENTE_ID_CLIENTE GROUP BY COD_ORDEN_CODIGOORDENCOMPRA;
+    END IF;
+    
+    EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+
+END;
+
+
+------------------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_LISTAR_PRODUCTO (v_PRODUCTO NUMBER,PRODUCTO	out SYS_REFCURSOR)
+IS
+BEGIN
+    OPEN PRODUCTO FOR SELECT * FROM PRODUCTO WHERE id_producto = v_PRODUCTO;
+END;
+
+-----------------------------------------------------------------------------------
+
+
+create or replace 
+PROCEDURE SPW_LISTAR_PRODUCTOS_PRO(V_CORREO VARCHAR, v_codigo varchar, ORDENCOMPRA out SYS_REFCURSOR)
+IS  
+ERROR VARCHAR(50);
+BEGIN
+
+  OPEN ORDENCOMPRA FOR select orc.COD_ORDEN_CODIGOORDENCOMPRA, pr.usuario_correo_usuario, orc.producto, orc.precio_producto, orc.cantidad from productor pr 
+  inner join producto pro on pr.id_productor = pro.productor_id_productor 
+  inner join producto_orden po on pro.id_producto = po.producto_id_producto 
+  inner join orden_compra orc on orc.idorden = po.orden_compra_idorden where orc.COD_ORDEN_CODIGOORDENCOMPRA = v_codigo and pr.usuario_correo_usuario = V_CORREO;
+  
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+
+END;
+
+
+----------------------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_LISTAR_PRODUCTOS_PRODUCTOR (V_CORREO_PRODUC	VARCHAR2,PRODUCTOS	out SYS_REFCURSOR)
+IS
+
+  CURSOR C_PRODUCTOR IS SELECT * FROM PRODUCTOR;
+  V_PRODUCTOR C_PRODUCTOR%rowtype;
+  V_IDPRODUC NUMBER;
+  VF_CORREO BOOLEAN;
+ERROR VARCHAR(50);
+BEGIN
+
+    VF_CORREO := FALSE;
+
+    OPEN C_PRODUCTOR;
+      LOOP
+        FETCH C_PRODUCTOR INTO V_PRODUCTOR;
+        
+          IF V_PRODUCTOR.USUARIO_CORREO_USUARIO = V_CORREO_PRODUC
+            THEN
+            VF_CORREO := TRUE;
+            V_IDPRODUC:= V_PRODUCTOR.ID_PRODUCTOR;
+            EXIT;
+          END IF;
+        
+        EXIT WHEN C_PRODUCTOR%NOTFOUND;
+      END LOOP;
+    CLOSE C_PRODUCTOR;
+
+
+  IF VF_CORREO=TRUE
+    THEN
+    OPEN PRODUCTOS FOR SELECT * FROM PRODUCTO WHERE productor_id_productor = V_IDPRODUC;
+  END IF;
+  
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+    
+END;
+
+
+----------------------------------------------------------------------------
+
+
+create or replace 
+PROCEDURE SPW_LISTAR_PROPUESTAS(V_CODIGO VARCHAR, PROPUESTAS out SYS_REFCURSOR)
+IS 
+ERROR VARCHAR(50);
+BEGIN
+
+    OPEN PROPUESTAS FOR SELECT pr.id_propuesta, pr.descripcion_propuesta, pr.valor_servicio, tr.usuario_correo_usuario
+      FROM PROPUESTA pr inner join transportista tr on pr.TRANSPORTISTA_ID_TRANSPORTISTA = tr.id_transportista 
+      where COD_ORDEN_CODIGOORDENCOMPRA = V_CODIGO and pr.estado = 'Aprobado';
+      
+      EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+       
+END;
+
+
+------------------------------------------------------------------------------
+
+
+create or replace 
+PROCEDURE SPW_LISTAR_PROPUESTAS_CL(V_CORREO_PRODUC VARCHAR, PRODUCTOS out SYS_REFCURSOR)
+IS 
+
+  CURSOR C_CLIENTE IS SELECT * FROM CLIENTE;
+  V_CLIENTE C_CLIENTE%rowtype;
+  
+  V_IDPRODUC NUMBER;
+  VF_CORREO BOOLEAN;
+ERROR VARCHAR(50);
+BEGIN
+
+    VF_CORREO := FALSE;
+
+    OPEN C_CLIENTE;
+      LOOP
+        FETCH C_CLIENTE INTO V_CLIENTE;
+        
+          IF V_CLIENTE.USUARIO_CORREO_USUARIO = V_CORREO_PRODUC
+            THEN
+            VF_CORREO := TRUE;
+            V_IDPRODUC:= V_CLIENTE.ID_CLIENTE;
+            EXIT;
+          END IF;
+        
+        EXIT WHEN C_CLIENTE%NOTFOUND;
+      END LOOP;
+    CLOSE C_CLIENTE;
+
+    OPEN PRODUCTOS FOR select pr.id_propuesta, pr.COD_ORDEN_CODIGOORDENCOMPRA, pr.descripcion_propuesta, pr.valor_servicio, pr.transportista_id_transportista, oc.cliente_id_cliente 
+      from orden_compra oc inner join propuesta pr on oc.idorden =  pr.COD_ORDEN_CODIGOORDENCOMPRA WHERE CLIENTE_ID_CLIENTE = V_IDPRODUC;
+      
+      EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+       
+END;
+
+
+
+-----------------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_LISTAR_PROPUESTAS_TR(V_CORREO_TR VARCHAR, PROPUESTAS out SYS_REFCURSOR)
+IS 
+
+  CURSOR C_TRANSPORTISTA IS SELECT * FROM TRANSPORTISTA;
+  V_TRANSPORTISTA C_TRANSPORTISTA%rowtype;
+  
+  V_IDTRANSPORTISTA NUMBER;
+  VF_CORREO BOOLEAN;
+  
+  ERROR VARCHAR(50);
+
+BEGIN
+
+    VF_CORREO := FALSE;
+
+    OPEN C_TRANSPORTISTA;
+      LOOP
+        FETCH C_TRANSPORTISTA INTO V_TRANSPORTISTA;
+        
+          IF V_TRANSPORTISTA.USUARIO_CORREO_USUARIO = V_CORREO_TR
+            THEN
+            VF_CORREO := TRUE;
+            V_IDTRANSPORTISTA:= V_TRANSPORTISTA.ID_TRANSPORTISTA;
+            EXIT;
+          END IF;
+        
+        EXIT WHEN C_TRANSPORTISTA%NOTFOUND;
+      END LOOP;
+    CLOSE C_TRANSPORTISTA;
+
+    OPEN PROPUESTAS FOR SELECT * FROM PROPUESTA where TRANSPORTISTA_ID_TRANSPORTISTA = V_IDTRANSPORTISTA;
+    
+    EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+       
+END;
+
+------------------------------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_LISTAR_SEGUIMIENTO(V_codigo VARCHAR, Seguimientos out SYS_REFCURSOR)
+IS 
+ERROR VARCHAR(50);
+BEGIN
+
+OPEN Seguimientos FOR select oc.COD_ORDEN_CODIGOORDENCOMPRA, se.descripcion_seguimiento, cl.usuario_correo_usuario 
+from orden_compra oc inner join Seguimiento se on oc.idorden = se.orden_compra_idorden 
+inner join cliente cl on oc.cliente_id_cliente = cl.id_cliente WHERE oc.COD_ORDEN_CODIGOORDENCOMPRA = V_codigo;
+
+EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+  
+END;
+
+----------------------------------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_LISTAR_SEGUIMIENTOS(V_CORREO VARCHAR, Seguimientos out SYS_REFCURSOR)
+IS 
+
+ERROR VARCHAR(50);
+
+BEGIN
+
+OPEN Seguimientos FOR select oc.COD_ORDEN_CODIGOORDENCOMPRA, se.descripcion_seguimiento, cl.usuario_correo_usuario from orden_compra oc 
+  inner join Seguimiento se on oc.idorden = se.orden_compra_idorden 
+  inner join cliente cl on oc.cliente_id_cliente = cl.id_cliente WHERE cl.usuario_correo_usuario = V_CORREO;
+  
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+  
+END;
+
+--------------------------------------------------------------------------------------------------
+
+
+create or replace 
+PROCEDURE SPW_LISTAR_SEGUIMIENTOS_CL(V_CORREO VARCHAR, Seguimientos out SYS_REFCURSOR)
+IS 
+ERROR VARCHAR(50);
+BEGIN
+
+OPEN Seguimientos FOR select oc.COD_ORDEN_CODIGOORDENCOMPRA, se.descripcion_seguimiento, cl.usuario_correo_usuario from orden_compra oc 
+  inner join Seguimiento se on oc.idorden = se.orden_compra_idorden 
+  inner join cliente cl on oc.cliente_id_cliente = cl.id_cliente WHERE cl.usuario_correo_usuario = V_CORREO;
+  
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+  
+END;
+
+----------------------------------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_LISTAR_SEGUIMIENTOS_TR(V_CORREO VARCHAR, Seguimientos out SYS_REFCURSOR)
+IS 
+ERROR VARCHAR(50);
+BEGIN
+
+OPEN Seguimientos FOR select * from Seguimiento se
+inner join orden_compra oc on oc.idorden = se.orden_compra_idorden 
+INNER JOIN PROPUESTA PRO ON oc.Cod_Orden_CodigoOrdenCompra = pro.Cod_Orden_CodigoOrdenCompra
+INNER JOIN TRANSPORTISTA TR ON pro.transportista_id_transportista = tr.id_transportista where pro.estado='Aprobado' and tr.usuario_correo_usuario = V_CORREO;
+
+EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+  
+END;
+
+
+-------------------------------------------------------------------------------
+
+
+create or replace 
+PROCEDURE SPW_LISTAR_USUARIO(V_CORREO VARCHAR, P_USUARIO out SYS_REFCURSOR)
+IS 
+
+  CURSOR C_USUARIO IS SELECT * FROM USUARIO WHERE correo_usuario = V_CORREO;
+  V_USUARIO C_USUARIO%rowtype;
+
+  V_TIPO NUMBER;
+  
+  ERROR VARCHAR(50);
+BEGIN
+
+    OPEN C_USUARIO;
+      LOOP
+        FETCH C_USUARIO INTO V_USUARIO;
+        
+        V_TIPO:= V_USUARIO.TIPO_USUARIO_ID_TIPO_USUARIO;
+        
+        EXIT WHEN C_USUARIO%NOTFOUND;
+      END LOOP;
+    CLOSE C_USUARIO;
+    
+    IF V_TIPO = 1
+      THEN
+            
+            OPEN P_USUARIO FOR SELECT cl.id_cliente, us.tipo_usuario_id_tipo_usuario as tipo, cl.nombre_cliente AS NOMBRE, cl.apellido_cliente AS APELLIDO, us.correo_usuario, cl.direccion_cliente  
+            AS DIRECCION, pa.nombre_pais, cl.numero_contacto AS NUMERO, us.EMPRESA  FROM CLIENTE CL 
+                INNER JOIN USUARIO US ON cl.usuario_correo_usuario = us.correo_usuario 
+                inner join pais pa on us.pais_id_pais = pa.id_pais where us.correo_usuario = V_CORREO;
+            
+    END IF;
+          
+    IF V_TIPO = 2
+      THEN
+            
+            OPEN P_USUARIO FOR SELECT pr.id_productor, us.tipo_usuario_id_tipo_usuario as tipo, pr.nombre_productor AS NOMBRE, pr.apellido_productor AS APELLIDO, us.correo_usuario, pr.numero_contacto 
+            AS NUMERO, pr.direccion_productor  AS DIRECCION, pa.nombre_pais, us.EMPRESA  FROM PRODUCTOR pr 
+                INNER JOIN USUARIO US ON pr.usuario_correo_usuario = us.correo_usuario 
+                inner join pais pa on us.pais_id_pais = pa.id_pais where us.correo_usuario = V_CORREO;
+
+    END IF;
+          
+    IF V_TIPO = 3
+      THEN
+              OPEN P_USUARIO FOR SELECT tr.id_transportista, us.tipo_usuario_id_tipo_usuario as tipo, tr.nombre_transportista AS NOMBRE, tr.apellido_transportista AS APELLIDO, us.correo_usuario, tr.numero_transportista 
+              AS NUMERO, tr.direccion_transportista  AS DIRECCION, pa.nombre_pais, us.EMPRESA , tr.descripcion_transportista FROM TRANSPORTISTA tr 
+                INNER JOIN USUARIO US ON tr.usuario_correo_usuario = us.correo_usuario 
+                inner join pais pa on us.pais_id_pais = pa.id_pais where us.correo_usuario = V_CORREO;
+
+    END IF;
+    
+    
+    EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+
+END;
+
+-----------------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_MODIFICAR_PRODUCTO (V_ID_PRODUCTO	NUMBER, V_NOMBRE_PRODUCTO VARCHAR2, V_PRECIO_KILO	NUMBER, V_ORIGEN_PRODUCTO	VARCHAR2, V_CARGA	NUMBER,
+                                                V_CALIDAD	VARCHAR2)
+IS
+ERROR VARCHAR(50);
+BEGIN
+    UPDATE PRODUCTO SET
+      nombre_producto = V_NOMBRE_PRODUCTO,
+      precio_kilo = V_PRECIO_KILO,
+      origen_producto = V_ORIGEN_PRODUCTO,
+      precio_carga = V_CARGA,
+      calidad = V_CALIDAD
+      WHERE id_producto = V_ID_PRODUCTO;
+      
+      EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+END;
+
+
+--------------------------------------------------------------------------------------
+
+
+create or replace 
+PROCEDURE SPW_MODIFICAR_SEGUIMIENTO(V_codigo VARCHAR, V_DESCRIPCION VARCHAR)
+IS 
+
+  CURSOR C_ORDEN IS select * from orden_compra;
+  V_ORDEN C_ORDEN%rowtype;
+  
+  ERROR VARCHAR(50);
+  
+BEGIN
+
+  OPEN C_ORDEN;
+    LOOP
+      FETCH C_ORDEN INTO V_ORDEN;
+
+        UPDATE SEGUIMIENTO SET
+        DESCRIPCION_SEGUIMIENTO = V_DESCRIPCION
+        WHERE ORDEN_COMPRA_IDORDEN = V_ORDEN.IDORDEN;
+      
+      EXIT WHEN C_ORDEN%NOTFOUND;
+    END LOOP;
+  CLOSE C_ORDEN;
+  
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+
+END;
+
+
+------------------------------------------------------------------------------------------
+
+
+
+create or replace 
+PROCEDURE SPW_MODIFICAR_USUARIO(V_CORREO VARCHAR, V_TIPO_USUARIO NUMBER,
+  V_PAIS_NOMBRE VARCHAR, V_NOMBRE_EMPRESA VARCHAR, V_NOMBRE VARCHAR, V_APELLIDO VARCHAR,
+  V_DIRECCION VARCHAR, V_NUMERO_CONTACTO NUMBER, V_TIPO_CLIENTE NUMBER, V_DESCRIPCION VARCHAR, V_IDPAIS NUMBER)
+
+IS 
+ERROR VARCHAR(50);
+BEGIN
+    
+    IF V_TIPO_USUARIO=1
+    THEN
+      
+      UPDATE CLIENTE SET
+      NOMBRE_CLIENTE = V_NOMBRE,
+      APELLIDO_CLIENTE = V_APELLIDO,
+      DIRECCION_CLIENTE = V_DIRECCION,
+      NUMERO_CONTACTO = V_NUMERO_CONTACTO
+      WHERE USUARIO_CORREO_USUARIO = V_CORREO;
+      
+    END IF;
+    
+    IF V_TIPO_USUARIO=2
+    THEN
+      
+      UPDATE PRODUCTOR SET
+      NOMBRE_PRODUCTOR = V_NOMBRE,
+      APELLIDO_PRODUCTOR = V_APELLIDO,
+      NUMERO_CONTACTO = V_NUMERO_CONTACTO,
+      DIRECCION_PRODUCTOR = V_DIRECCION
+      WHERE USUARIO_CORREO_USUARIO = V_CORREO;
+      
+    END IF;
+    
+    IF V_TIPO_USUARIO=3
+    THEN
+    
+      UPDATE TRANSPORTISTA SET
+      NOMBRE_TRANSPORTISTA = V_NOMBRE,
+      APELLIDO_TRANSPORTISTA = V_APELLIDO,
+      NUMERO_TRANSPORTISTA = V_NUMERO_CONTACTO,
+      DIRECCION_TRANSPORTISTA = V_DIRECCION,
+      DESCRIPCION_TRANSPORTISTA = v_descripcion
+      WHERE USUARIO_CORREO_USUARIO = V_CORREO;
+      
+    END IF;
+    
+    EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+     
+END;
+
+
+----------------------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_MOSTRAR_CARRITO(V_ID_CLIENTE NUMBER, PRODUCTOS	out SYS_REFCURSOR)
+IS 
+ERROR VARCHAR(50);
+BEGIN
+
+  OPEN PRODUCTOS FOR SELECT * FROM CARRITO WHERE cliente_id_cliente = V_ID_CLIENTE;
+  
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+  
+END;
+
+
+-----------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_PAGO(V_CODIGO VARCHAR)
+IS 
+
+  CURSOR C_ORDEN_COMPRA IS SELECT * FROM ORDEN_COMPRA WHERE cod_orden_codigoordencompra = V_CODIGO;
+  V_ORDEN_COMPRA C_ORDEN_COMPRA%rowtype;
+  
+  V_ID_ORDENCOMPRA NUMBER;
+  
+  ERROR VARCHAR(50);
+
+BEGIN
+
+    OPEN C_ORDEN_COMPRA;
+      LOOP
+        FETCH C_ORDEN_COMPRA INTO V_ORDEN_COMPRA;
+
+            V_ID_ORDENCOMPRA := V_ORDEN_COMPRA.IDORDEN;
+              
+        EXIT WHEN C_ORDEN_COMPRA%NOTFOUND;
+      END LOOP;
+    CLOSE C_ORDEN_COMPRA;
+
+    INSERT INTO SEGUIMIENTO VALUES(
+      SEC_SEGUIMIENTO.NEXTVAL,
+      'Orden en Camino',
+      V_ID_ORDENCOMPRA
+    ); 
+
+    UPDATE CT_PRODUCTOR SET
+    estado_contrato = 'Pagado'
+    WHERE COD_ORDEN_CODIGOORDENCOMPRA = V_CODIGO;
+    
+    UPDATE CT_TRANSP SET
+    estadocontrato = 'Pagado'
+    WHERE COD_ORDEN_CODIGOORDENCOMPRA = V_CODIGO;
+    
+    UPDATE ORDEN_COMPRA SET
+    estado = 'Pagado'
+    WHERE COD_ORDEN_CODIGOORDENCOMPRA = V_CODIGO;
+    
+    EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+         
+END;
+
+-------------------------------------------------------------------------
+
+create or replace 
+PROCEDURE SPW_VISUALIZAR_PROPUESTA(V_IDPROPUESTA NUMBER,PROPUESTAS	out SYS_REFCURSOR)
+IS 
+ERROR VARCHAR(50);
+BEGIN
+
+  OPEN PROPUESTAS FOR SELECT * FROM PROPUESTA WHERE id_propuesta = V_IDPROPUESTA;
+  
+  EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+
+
+END;
+
+
+--------------------------------------------------------------------
+
+create or replace 
+function FN_AGREGAR_PRODUCTO (V_NOMBRE_PRODUCTO VARCHAR2, V_PRECIO_KILO	NUMBER, V_ORIGEN_PRODUCTO	VARCHAR2, V_CARGA	NUMBER,
+                                                V_CALIDAD	VARCHAR2, V_CORREO_PRODUC	VARCHAR2) return number
+IS
+
+  CURSOR C_PRODUCTOR IS SELECT * FROM PRODUCTOR;
+  V_PRODUCTOR C_PRODUCTOR%rowtype;
+  V_IDPRODUC NUMBER;
+  VF_CORREO BOOLEAN; 
+  V_IDPRODUCTO NUMBER;
+BEGIN
+
+    VF_CORREO := FALSE;
+
+    OPEN C_PRODUCTOR;
+      LOOP
+        FETCH C_PRODUCTOR INTO V_PRODUCTOR;
+        
+          IF V_PRODUCTOR.USUARIO_CORREO_USUARIO = V_CORREO_PRODUC
+            THEN
+            VF_CORREO := TRUE;
+            V_IDPRODUC:= V_PRODUCTOR.ID_PRODUCTOR;
+            EXIT;
+          END IF;
+        
+        EXIT WHEN C_PRODUCTOR%NOTFOUND;
+      END LOOP;
+    CLOSE C_PRODUCTOR;
+
+
+  IF VF_CORREO=TRUE
+    THEN
+    
+    V_IDPRODUCTO:= SEC_PRODUCTOS.NEXTVAL;
+    
+    INSERT INTO PRODUCTO VALUES(
+      V_IDPRODUCTO,
+      V_NOMBRE_PRODUCTO,
+      V_PRECIO_KILO,
+      V_ORIGEN_PRODUCTO,
+      V_CARGA,
+      V_CALIDAD,
+      V_IDPRODUC
+    ); 
+    
+    RETURN V_IDPRODUCTO;
+    
+  END IF;
+
+END;
+
+
+-------------------------------------------------------------------------------------------------------
+
+
+create or replace 
+FUNCTION FN_CAMBIAR_PASS(V_CORREO VARCHAR, V_PASS VARCHAR, V_PASS2 VARCHAR) RETURN NUMBER
+IS 
+
+  CURSOR C_USUARIO IS SELECT * FROM USUARIO;
+  V_USUARIO C_USUARIO%rowtype;
+  VERIFICADOR NUMBER;
+
+BEGIN 
+
+    VERIFICADOR:=0;
+
+    OPEN C_USUARIO;
+      LOOP
+        FETCH C_USUARIO INTO V_USUARIO;
+        
+          IF V_USUARIO.CORREO_USUARIO = V_CORREO AND V_USUARIO.CONTRASEÑA_USUARIO = V_PASS
+            THEN
+            
+            VERIFICADOR:=1;
+            
+            EXIT;
+          END IF;
+        
+        EXIT WHEN C_USUARIO%NOTFOUND;
+      END LOOP;
+    CLOSE C_USUARIO;
+    
+    IF VERIFICADOR = 1
+      THEN
+      
+      UPDATE USUARIO SET
+        CONTRASEÑA_USUARIO = V_PASS2
+      WHERE CORREO_USUARIO = V_CORREO;
+      
+    END IF;
+    
+    RETURN VERIFICADOR;
+      
+END;
+
+
+----------------------------------------------------------------------------------------------------
+
+
+create or replace 
+function FN_LOGIN(V_CORREO varchar2, V_PASS varchar2) return NUMBER
+IS 
+  CURSOR C_USUARIO IS SELECT * FROM USUARIO;
+  V_USUARIOS C_USUARIO%rowtype;
+  
+  VERIFICADOR NUMBER;
+  
+BEGIN
+
+  VERIFICADOR:= 0;
+
+  OPEN C_USUARIO;
+    LOOP
+      FETCH C_USUARIO INTO V_USUARIOS;
+      
+        IF V_USUARIOS.CORREO_USUARIO = V_CORREO AND v_USUARIOS.CONTRASEÑA_USUARIO = V_PASS
+          THEN    
+          
+          VERIFICADOR:= V_USUARIOS.TIPO_USUARIO_ID_TIPO_USUARIO;         
+        
+        END IF;
+        
+      EXIT WHEN C_USUARIO%NOTFOUND;
+    END LOOP;
+  CLOSE C_USUARIO;
+  
+  RETURN VERIFICADOR;
+  
+END;
