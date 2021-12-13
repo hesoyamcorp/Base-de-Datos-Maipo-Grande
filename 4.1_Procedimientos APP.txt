@@ -214,8 +214,8 @@ BEGIN
  OPEN C_CT_PRODUCTOR_2 FOR 
  SELECT 
      SUM(GANANCIATOTAL) AS GANACIA_TOTAL_CONTRATO,
-     SUM(GANANCIA_MAIPO) AS GANACIA_TOTAL_MAIPOGRANDE,
-     SUM(GANANCIAPRODUCTOR) AS GANACIA_TOTAL_PRODUCTOR 
+     SUM((GANANCIA_MAIPO*(GANANCIATOTAL/(GANANCIA_MAIPO+GANANCIAPRODUCTOR)))) AS GANACIA_TOTAL_MAIPOGRANDE,
+     SUM((GANANCIAPRODUCTOR*(GANANCIATOTAL/(GANANCIAPRODUCTOR+GANANCIA_MAIPO)))) AS GANACIA_TOTAL_PRODUCTOR 
  FROM CT_PRODUCTOR WHERE COD_ORDEN_CODIGOORDENCOMPRA = V_CODIGOORDENCOMPRA;
  EXCEPTION
   WHEN OTHERS THEN
@@ -386,22 +386,40 @@ BEGIN
     );
 END;
 --
-create or replace PROCEDURE SPA_LISTAR_PROPUESTAS(V_CODIGO VARCHAR, PROPUESTAS out SYS_REFCURSOR)
+create or replace PROCEDURE SPAT_LISTAR_PROPUESTAS(V_CODIGO VARCHAR, PROPUESTAS out SYS_REFCURSOR)
 IS 
-ERROR varchar(300);
+
 BEGIN
 
-    OPEN PROPUESTAS FOR SELECT pr.id_propuesta, pr.descripcion_propuesta, pr.valor_servicio, tr.usuario_correo_usuario
-      FROM PROPUESTA pr inner join transportista tr on pr.TRANSPORTISTA_ID_TRANSPORTISTA = tr.id_transportista 
-      where COD_ORDEN_CODIGOORDENCOMPRA = V_CODIGO and pr.estado = 'Aprobado';
-EXCEPTION
-  WHEN OTHERS THEN
-    ERROR:= SQLERRM;
+    OPEN PROPUESTAS FOR 
 
-    INSERT INTO REGISTRO_ERROR VALUES(
-    SEC_ERROR.NEXTVAL,
-    ERROR
-    );
+    SELECT 
+    PR.ID_PROPUESTA, 
+    PR.COD_ORDEN_CODIGOORDENCOMPRA, 
+    PR.DESCRIPCION_PROPUESTA, 
+    PR.VALOR_SERVICIO, 
+    TR.USUARIO_CORREO_USUARIO,
+
+    TR.NOMBRE_TRANSPORTISTA,
+    TR.ID_TRANSPORTISTA,
+    US.EMPRESA
+
+    FROM PROPUESTA pr inner join transportista tr on pr.TRANSPORTISTA_ID_TRANSPORTISTA = tr.id_transportista 
+    join USUARIO us on tr.USUARIO_CORREO_USUARIO = us.correo_usuario 
+    join cod_orden codor on pr.cod_orden_codigoordencompra=codor.codigoordencompra
+    join orden_compra oc on codor.codigoordencompra=oc.cod_orden_codigoordencompra
+
+    where PR.COD_ORDEN_CODIGOORDENCOMPRA = V_CODIGO
+    group by PR.ID_PROPUESTA, 
+    PR.COD_ORDEN_CODIGOORDENCOMPRA, 
+    PR.DESCRIPCION_PROPUESTA, 
+    PR.VALOR_SERVICIO, 
+    TR.USUARIO_CORREO_USUARIO,
+
+    TR.NOMBRE_TRANSPORTISTA,
+    TR.ID_TRANSPORTISTA,
+    US.EMPRESA;
+
 END;
 --
 create or replace PROCEDURE SPA_LISTAR_test (C_test OUT SYS_REFCURSOR)
@@ -532,6 +550,107 @@ BEGIN
   SET    ESTADO = 'Rechazado'
   WHERE  COD_ORDEN_CODIGOORDENCOMPRA = V_CODIGOORDENCOMPRA;
    EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+END;
+--
+create or replace PROCEDURE SPAT_LISTAR_ORDEN_CODIGO_SEG (V_CODIGOORDENCOMPRA VARCHAR2,C_ORDEN OUT SYS_REFCURSOR)
+IS
+ERROR varchar(300);
+BEGIN
+  OPEN C_ORDEN 
+  FOR select oc.cod_orden_codigoordencompra,
+cli.id_cliente,
+cli.nombre_cliente,
+cli.usuario_correo_usuario,
+
+seg.descripcion_seguimiento,
+oc.destino_compra from orden_compra oc join seguimiento seg on oc.idorden=seg.orden_compra_idorden
+join cliente cli on oc.cliente_id_cliente = cli.id_cliente
+where  oc.cod_orden_codigoordencompra = V_CODIGOORDENCOMPRA
+GROUP BY oc.cod_orden_codigoordencompra,
+cli.id_cliente,
+cli.nombre_cliente,
+cli.usuario_correo_usuario,
+seg.descripcion_seguimiento,
+oc.destino_compra
+ ;
+      EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+END;
+--
+create or replace PROCEDURE SPAT_LISTAR_ORDEN_SEG (C_ORDEN OUT SYS_REFCURSOR)
+IS
+ERROR varchar(300);
+BEGIN
+  OPEN C_ORDEN 
+  FOR select oc.cod_orden_codigoordencompra,
+cli.id_cliente,
+cli.nombre_cliente,
+cli.usuario_correo_usuario,
+
+seg.descripcion_seguimiento,
+oc.destino_compra from orden_compra oc join seguimiento seg on oc.idorden=seg.orden_compra_idorden
+join cliente cli on oc.cliente_id_cliente = cli.id_cliente
+GROUP BY oc.cod_orden_codigoordencompra,
+cli.id_cliente,
+cli.nombre_cliente,
+cli.usuario_correo_usuario,
+seg.descripcion_seguimiento,
+oc.destino_compra
+ ;
+      EXCEPTION
+  WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+END;
+--
+create or replace PROCEDURE SPAT_CREAR_CTTRANS 
+(
+V_NOMBRECLIENTE VARCHAR2,
+V_RESPONSABLE_NOMBRE VARCHAR2,
+V_RESPONSABLE_EMPRESA VARCHAR2,
+V_DESTINOPEDIDO VARCHAR2,
+V_PESOTOTAL NUMBER,
+V_VALORSERVICIO NUMBER,
+V_ID_TRANSPORTISTA NUMBER,
+V_CODIGOORDENCOMPRA VARCHAR2)
+IS
+ERROR varchar(300);
+BEGIN
+  INSERT INTO CT_TRANSP
+VALUES (
+SEC_CTTRANSPORTISTA.nextval,
+V_NOMBRECLIENTE ,
+V_RESPONSABLE_NOMBRE ,
+V_RESPONSABLE_EMPRESA ,
+to_char(SYSDATE,'dd/MM/YYYY') ,
+('No Terminado'),
+V_DESTINOPEDIDO ,
+'Pagado',
+V_PESOTOTAL ,
+V_VALORSERVICIO ,
+V_ID_TRANSPORTISTA ,
+V_CODIGOORDENCOMPRA );
+
+UPDATE PROPUESTA  SET ESTADO = 'Aprobado'  WHERE  COD_ORDEN_CODIGOORDENCOMPRA = V_CODIGOORDENCOMPRA;
+
+EXCEPTION
   WHEN OTHERS THEN
     ERROR:= SQLERRM;
 
