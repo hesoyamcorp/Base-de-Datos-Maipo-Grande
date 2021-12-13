@@ -1500,3 +1500,95 @@ BEGIN
   RETURN VERIFICADOR;
   
 END;
+------------------------------------------------------------------------------------------------------
+create or replace 
+PROCEDURE SPW_AGREGAR_APELACION(P_DESCRIPCION VARCHAR2, P_ORDEN VARCHAR2, P_RESPUESTA VARCHAR2, P_ESTADO VARCHAR2)
+IS 
+ ERROR VARCHAR(50);
+BEGIN
+
+  INSERT INTO APELACION VALUES(
+      SEC_APELACION.NEXTVAL,
+      P_DESCRIPCION,
+      P_ORDEN,
+      P_RESPUESTA,
+      P_ESTADO
+    );  
+
+EXCEPTION
+WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+    
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+END;
+
+------------------------------------
+
+create or replace 
+PROCEDURE SPW_LISTA_APELACIONES_CL (V_CORREO_PRODUC varchar2, APELACION	out SYS_REFCURSOR)
+IS
+
+ CURSOR C_CLIENTE IS SELECT * FROM CLIENTE;
+  V_CLIENTE C_CLIENTE%rowtype;
+  
+  V_IDPRODUC NUMBER;
+  VF_CORREO BOOLEAN;
+  ERROR VARCHAR(50);
+  
+BEGIN
+
+    VF_CORREO := FALSE;
+
+    OPEN C_CLIENTE;
+      LOOP
+        FETCH C_CLIENTE INTO V_CLIENTE;
+        
+          IF V_CLIENTE.USUARIO_CORREO_USUARIO = V_CORREO_PRODUC
+            THEN
+            VF_CORREO := TRUE;
+            V_IDPRODUC:= V_CLIENTE.ID_CLIENTE;
+            EXIT;
+          END IF;
+        
+        EXIT WHEN C_CLIENTE%NOTFOUND;
+      END LOOP;
+    CLOSE C_CLIENTE;
+
+    OPEN APELACION FOR SELECT ap.id_devolucion, ap.descripcion, ap.estado, ap.respuesta, ap.orden_compra_idorden, oc.Cod_Orden_CodigoOrdenCompra FROM APELACION AP INNER JOIN ORDEN_COMPRA oc ON AP.Orden_compra_IdOrden = oc.IdOrden where oc.Cliente_id_Cliente = V_IDPRODUC;
+    
+EXCEPTION
+WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+    
+END;
+
+------------------------------------------
+
+create or replace 
+PROCEDURE SPW_LISTAR_APELACION(p_idApelacion number, APELACION	out SYS_REFCURSOR)
+IS
+
+    ERROR VARCHAR(50);
+  
+BEGIN
+
+    OPEN APELACION FOR SELECT * FROM APELACION where p_idApelacion = Id_devolucion;
+    
+EXCEPTION
+WHEN OTHERS THEN
+    ERROR:= SQLERRM;
+
+    INSERT INTO REGISTRO_ERROR VALUES(
+    SEC_ERROR.NEXTVAL,
+    ERROR
+    );
+    
+END;
